@@ -64,7 +64,6 @@ lowerCarAura = False
 carAuraTarget = 20#starting same as carAura
 raiseRearCutOffDistance = False
 lowerRearCutOffDistance = False
-rearCutOffDistanceTarget = 10 # same as starting
 
 appWindow = 0
 titleLabel = 0
@@ -275,7 +274,7 @@ def acMain(ac_version):
 			flagLength = float(lineList[1])
 
 		if(len(lines) > 19):			
-			line = lines[18]
+			line = lines[19]
 			lineList = line.split(" ")
 			rearCutOffDistance = float(lineList[1])
 
@@ -2155,12 +2154,11 @@ def drawConfig():
 
 	#rear cut visual
 	if(configWindowOpen):
-		ac.glColor4f(255,0,0,alpha)
-		x =   windowWidth*.5 -scale*6 * (carAura/5)
-		# outerCircleSize = scale*(4)*(carAura/5)
-		y = windowWidth*.5 + scale*5 * (carAura/5) -( rearCutOffDistance * scale) + scale # + scale for spacer
-		width =  -x*2
-		height= scale 
+		ac.glColor4f(189/255,0,0,1)
+		x = windowWidth*.5 -(scale*5 * (carAura/5))*1
+		y = windowWidth*.5 + scale*5 * (carAura/5) -( rearCutOffDistance * scale) + scale*2 # + scale for spacer
+		width =  (scale*5 * (carAura/5)) + scale
+		height= scale *1
 
 		ac.glQuad(x,y,width,height)
 
