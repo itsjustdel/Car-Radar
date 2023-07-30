@@ -1130,16 +1130,18 @@ def rangeClickDown(name,state):
 		carAuraTarget = 0
 
 def rearCutOffDistanceClickUp(name,state):
-	global rearCutOffDistance, raiseRearCutOffDistance
+	global rearCutOffDistance, raiseRearCutOffDistance, carAura
 	
 	raiseRearCutOffDistance = True
-	rearCutOffDistance += 5	
+	rearCutOffDistance += 2.5	
+	if(rearCutOffDistance > carAura - 2.5):
+		rearCutOffDistance = carAura - 2.5
 
 def rearCutOffDistanceClickDown(name,state):
 	global rearCutOffDistance, lowerRearCutOffDistance
 
 	lowerRearCutOffDistance = True
-	rearCutOffDistance -= 5
+	rearCutOffDistance -= 2.5
 	if(rearCutOffDistance < 0):
 		rearCutOffDistance = 0
 
@@ -2150,6 +2152,19 @@ def drawConfig():
 
 				ac.glEnd()
 	#stuff being drawn but hidden with alpha?
+
+	#rear cut visual
+	if(configWindowOpen):
+		ac.glColor4f(255,0,0,alpha)
+		x =   windowWidth*.5 -scale*6 * (carAura/5)
+		# outerCircleSize = scale*(4)*(carAura/5)
+		y = windowWidth*.5 + scale*5 * (carAura/5) -( rearCutOffDistance * scale) + scale # + scale for spacer
+		width =  -x*2
+		height= scale 
+
+		ac.glQuad(x,y,width,height)
+
+	
 
 def buildCarList():
 
@@ -3298,8 +3313,8 @@ def alphaAtDistance(car,distance):
 		rotatedPlayerVectorY2 = (sa * relativeX + ca * relativeZ)
 		
 		# rear end distance cutoff
-		if(rotatedPlayerVectorY2 < -rearCutOffDistance):			
-			inValue =  distance/(rearCutOffDistance * 2) # After all these years I still don't understand why I need * 2						
+		if(rotatedPlayerVectorY2 <  -(carAura - rearCutOffDistance)):			
+			inValue =  distance/(carAura -rearCutOffDistance) # After all these years I still don't understand why I need * 2						
 			curveSpeed = 20 # this value changes how aggressively it fades out
 			endFraction = 1.15 # this value changes when it starts to fade out (very sensitive)
 			x = inValue
