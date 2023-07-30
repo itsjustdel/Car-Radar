@@ -20,8 +20,8 @@ os.environ['PATH'] = os.environ['PATH'] + ";."
 
 from sidekick_lib.sim_info import info
 
-import ctypes
-from ctypes import wintypes
+# import ctypes
+# from ctypes import wintypes
 
 ######user variables
 ##below are variables which I decided not to put in to the user controllable menu, but you may want to change them anyway
@@ -34,7 +34,7 @@ backgroundMaxOpacity = 0.9
 
 #hide player car always by making False
 drawPlayerCar = True
-#Froce all outlines off
+#Force all outlines off
 drawOutlineOfCars = True
 ##force main body of cars off
 drawMeshOfCars = True
@@ -56,11 +56,15 @@ scaleLimit = 100
 
 carAura = 20
 angleOfInfluence = 90
+rearCutOffDistance = 10
 ######
 #range animation
 raiseCarAura = False
 lowerCarAura = False
 carAuraTarget = 20#starting same as carAura
+raiseRearCutOffDistance = False
+lowerRearCutOffDistance = False
+rearCutOffDistanceTarget = 10 # same as starting
 
 appWindow = 0
 titleLabel = 0
@@ -129,7 +133,7 @@ converterWait = False
 converterWaitCount = 0
 
 def acMain(ac_version):
-	global appWindow,title,configButton,configButton2,configSizeCurrent,configSizeSmall,configSizeLarge,scaleButtons,background,scale,playerCarMeshColourIndex,playerCarOutlineColourIndex,otherCarMeshColourIndex,otherCarOutlineColourIndex,carAura,fadeTime,fadeSwitch,carAuraTarget,angleOfInfluence,angleTarget,highPerformanceOn,highPerformanceOnClicked,indicatorSwitch,indicatorMode,otherColourLabel,otherColourPlus,otherColourMinus,proximityLabel,proxPlus,proxMinus,proxRange,blueFlags,blueFlagSwitch,overallOpacity,indicatorFlagMode,indicatorFlagSwitch,flagClickUp,flagClickDown,proxSolid,flagTypeSwitch,flagWidth,flagLength,flagTypeButton,indicatorWidthButton,indicatorLengthButton,flag,indicatorMinus,indicatorPlus,indicatorLengthMinus,indicatorLengthPlus, backgroundColourIndex,backgroundColourSwitch,backgroundColourLabel,backgroundTypePlus,backgroundTypeMinus,backgroundTypeLabel,backgroundShape
+	global appWindow,title,configButton,configButton2,configSizeCurrent,configSizeSmall,configSizeLarge,scaleButtons,background,scale,playerCarMeshColourIndex,playerCarOutlineColourIndex,otherCarMeshColourIndex,otherCarOutlineColourIndex,carAura,fadeTime,fadeSwitch,carAuraTarget,angleOfInfluence,angleTarget,highPerformanceOn,highPerformanceOnClicked,indicatorSwitch,indicatorMode,otherColourLabel,otherColourPlus,otherColourMinus,proximityLabel,proxPlus,proxMinus,proxRange,blueFlags,blueFlagSwitch,overallOpacity,indicatorFlagMode,indicatorFlagSwitch,flagClickUp,flagClickDown,proxSolid,flagTypeSwitch,flagWidth,flagLength,flagTypeButton,indicatorWidthButton,indicatorLengthButton,flag,indicatorMinus,indicatorPlus,indicatorLengthMinus,indicatorLengthPlus, backgroundColourIndex,backgroundColourSwitch,backgroundColourLabel,backgroundTypePlus,backgroundTypeMinus,backgroundTypeLabel,backgroundShape,rearCutOffDistance,rearCutOffDistanceClickUp,rearCutOffDistanceClickDown
 
 
 	#check for config file
@@ -152,12 +156,14 @@ def acMain(ac_version):
 	configFileLocation = os.path.join(d, filename)
 	#ac.log(str(configFileLocation))
 	configAvailable = os.path.isfile(configFileLocation)
-	#ac.log("avail... " + str(configAvailable))
-	if configAvailable:
+	
+	lines = []
+	if(configAvailable):
 		configFile = open(configFileLocation, "r")
-		#grab values from the file and enter in to variables
 		lines = configFile.readlines()
-		
+
+	if configAvailable and len(lines) > 0:	
+		#grab values from the file and enter in to variables		
 		line = lines[0]
 		lineList = line.split(" ")
 		scale = int(lineList[1])
@@ -268,6 +274,11 @@ def acMain(ac_version):
 			lineList = line.split(" ")
 			flagLength = float(lineList[1])
 
+		if(len(lines) > 19):			
+			line = lines[18]
+			lineList = line.split(" ")
+			rearCutOffDistance = float(lineList[1])
+
 		configFile.close()
 
 	else:
@@ -334,6 +345,8 @@ def acMain(ac_version):
 
 		cf.write("flagLength " + str(flagLength)+ '\n')
 
+		cf.write("rearCutOffDistance " + str(rearCutOffDistance)+'\n')
+
 		cf.close()
 
 	appWindow = ac.newApp("carRadar")
@@ -345,7 +358,7 @@ def acMain(ac_version):
 	ac.setSize(appWindow, windowWidth, windowWidth)
 	ac.drawBorder(appWindow,0)
 	#tell AC to render every frame
-	ac.addRenderCallback(appWindow , acUpdate)
+	ac.addRenderCallback(appWindow , goGoCarRadar)
 	#only run code if app is active??????????????
 	
 	ac.addOnAppActivatedListener(appWindow,onActivated)
@@ -539,18 +552,44 @@ def acMain(ac_version):
 	scaleButtons.append(rangePlus)
 	ac.addOnClickedListener(rangePlus,rangeClickUp)
 
+	
+	rearCutOffDistanceLabel = ac.addLabel(appWindow,"REAR CUT OFF")
+	ac.setFontAlignment(rearCutOffDistanceLabel,"left")
+	ac.drawBorder(rearCutOffDistanceLabel,1)
+	ac.setSize(rearCutOffDistanceLabel,80,20)
+	ac.setPosition(rearCutOffDistanceLabel,windowWidth + 20 ,140)
+	ac.setVisible(rearCutOffDistanceLabel,0)
+	scaleButtons.append(rearCutOffDistanceLabel)
+
+	rearCutOffDistanceMinus = ac.addButton(appWindow," - ")
+	ac.setFontAlignment(rearCutOffDistanceMinus,"left")
+	ac.drawBorder(rearCutOffDistanceMinus,1)
+	ac.setSize(rearCutOffDistanceMinus,20,20)
+	ac.setPosition(rearCutOffDistanceMinus,windowWidth + 20 + 80 + 20 + 20 ,140)
+	ac.setVisible(rearCutOffDistanceMinus,0)
+	scaleButtons.append(rearCutOffDistanceMinus)
+	ac.addOnClickedListener(rearCutOffDistanceMinus,rearCutOffDistanceClickDown)
+
+	rearCutOffDistancePlus = ac.addButton(appWindow," + ")	
+	ac.setFontAlignment(rearCutOffDistancePlus,"left")
+	ac.drawBorder(rearCutOffDistancePlus,1)
+	ac.setSize(rearCutOffDistancePlus,20,20)
+	ac.setPosition(rearCutOffDistancePlus,windowWidth + 20 + 80 + 20 + 20 + 20,140)
+	ac.setVisible(rearCutOffDistancePlus,0)
+	scaleButtons.append(rearCutOffDistancePlus)
+	ac.addOnClickedListener(rearCutOffDistancePlus,rearCutOffDistanceClickUp)
+
 	fadeLabel = ac.addLabel(appWindow,"SMOOTH FADE")
 	ac.setFontAlignment(fadeLabel,"left")
 	ac.drawBorder(fadeLabel,1)
 	ac.setSize(fadeLabel,80,20)
-	ac.setPosition(fadeLabel,windowWidth + 20 ,140)
+	ac.setPosition(fadeLabel,windowWidth + 20 ,160)
 	ac.setVisible(fadeLabel,0)
 	scaleButtons.append(fadeLabel)
 
 	fadeSwitch = ac.addButton(appWindow,"")	
 	ac.setFontAlignment(fadeSwitch,"left")
 	ac.drawBackground(fadeSwitch,1)	
-	#ac.setBackgroundColor(highPerformanceOn,carColours[2][0],carColours[2][1],carColours[2][2])
 	if(fadeTime == 1):
 		#set red
 		ac.setBackgroundColor(fadeSwitch,189/255,0,0)
@@ -561,7 +600,7 @@ def acMain(ac_version):
 	ac.setBackgroundOpacity(fadeSwitch,1)
 	ac.drawBorder(fadeSwitch,1)
 	ac.setSize(fadeSwitch,20,20)
-	ac.setPosition(fadeSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,140)
+	ac.setPosition(fadeSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,160)
 	ac.setVisible(fadeSwitch,0)
 	scaleButtons.append(fadeSwitch)
 	ac.addOnClickedListener(fadeSwitch,fadeClick)
@@ -571,7 +610,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(angleLabel,"left")
 	ac.drawBorder(angleLabel,1)
 	ac.setSize(angleLabel,80,20)
-	ac.setPosition(angleLabel,windowWidth + 20 ,160)
+	ac.setPosition(angleLabel,windowWidth + 20 ,180)
 	ac.setVisible(angleLabel,0)
 	scaleButtons.append(angleLabel)
 
@@ -579,7 +618,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(angleMinus,"left")
 	ac.drawBorder(angleMinus,1)
 	ac.setSize(angleMinus,20,20)
-	ac.setPosition(angleMinus,windowWidth + 20 + 80 + 20 + 20 ,160)
+	ac.setPosition(angleMinus,windowWidth + 20 + 80 + 20 + 20 ,180)
 	ac.setVisible(angleMinus,0)
 	scaleButtons.append(angleMinus)
 	ac.addOnClickedListener(angleMinus,angleClickDown)
@@ -588,7 +627,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(anglePlus,"left")
 	ac.drawBorder(anglePlus,1)
 	ac.setSize(anglePlus,20,20)
-	ac.setPosition(anglePlus,windowWidth + 20 + 80 + 20 + 20 + 20,160)
+	ac.setPosition(anglePlus,windowWidth + 20 + 80 + 20 + 20 + 20,180)
 	ac.setVisible(anglePlus,0)
 	scaleButtons.append(anglePlus)
 	ac.addOnClickedListener(anglePlus,angleClickUp)
@@ -597,7 +636,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(highPerformance,"left")
 	ac.drawBorder(highPerformance,1)
 	ac.setSize(highPerformance,80,20)
-	ac.setPosition(highPerformance,windowWidth + 20 ,180)
+	ac.setPosition(highPerformance,windowWidth + 20 ,200)
 	ac.setVisible(highPerformance,0)
 	scaleButtons.append(highPerformance)
 
@@ -615,7 +654,7 @@ def acMain(ac_version):
 	ac.setBackgroundOpacity(highPerformanceOn,1)
 	ac.drawBorder(highPerformanceOn,1)
 	ac.setSize(highPerformanceOn,20,20)
-	ac.setPosition(highPerformanceOn,windowWidth + 20 + 80 + 20 + 20 + 20,180)
+	ac.setPosition(highPerformanceOn,windowWidth + 20 + 80 + 20 + 20 + 20,200)
 	ac.setVisible(highPerformanceOn,0)
 	scaleButtons.append(highPerformanceOn)
 	ac.addOnClickedListener(highPerformanceOn,highPerformanceOnClick)
@@ -624,7 +663,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(indicatorButton,"left")
 	ac.drawBorder(indicatorButton,1)
 	ac.setSize(indicatorButton,80,20)
-	ac.setPosition(indicatorButton,windowWidth + 20 ,200)
+	ac.setPosition(indicatorButton,windowWidth + 20 ,220)
 	ac.setVisible(indicatorButton,0)
 	scaleButtons.append(indicatorButton)
 
@@ -642,7 +681,7 @@ def acMain(ac_version):
 	ac.setBackgroundOpacity(indicatorSwitch,1)
 	ac.drawBorder(indicatorSwitch,1)
 	ac.setSize(indicatorSwitch,20,20)
-	ac.setPosition(indicatorSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,200)
+	ac.setPosition(indicatorSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,220)
 	ac.setVisible(indicatorSwitch,0)
 	scaleButtons.append(indicatorSwitch)
 	ac.addOnClickedListener(indicatorSwitch,indicatorClick)
@@ -651,7 +690,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(indicatorFlagsButton,"left")
 	ac.drawBorder(indicatorFlagsButton,1)
 	ac.setSize(indicatorFlagsButton,80,20)
-	ac.setPosition(indicatorFlagsButton,windowWidth + 20 ,220)
+	ac.setPosition(indicatorFlagsButton,windowWidth + 20 ,240)
 	ac.setVisible(indicatorFlagsButton,0)
 	scaleButtons.append(indicatorFlagsButton)
 
@@ -669,7 +708,7 @@ def acMain(ac_version):
 	ac.setBackgroundOpacity(indicatorFlagSwitch,1)
 	ac.drawBorder(indicatorFlagSwitch,1)
 	ac.setSize(indicatorFlagSwitch,20,20)
-	ac.setPosition(indicatorFlagSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,220)
+	ac.setPosition(indicatorFlagSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,240)
 	ac.setVisible(indicatorFlagSwitch,0)
 	scaleButtons.append(indicatorFlagSwitch)
 	ac.addOnClickedListener(indicatorFlagSwitch,indicatorFlagClick)
@@ -678,7 +717,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(flagTypeButton,"left")
 	ac.drawBorder(flagTypeButton,1)
 	ac.setSize(flagTypeButton,80,20)
-	ac.setPosition(flagTypeButton,windowWidth + 20 ,240)
+	ac.setPosition(flagTypeButton,windowWidth + 20 ,260)
 	ac.setVisible(flagTypeButton,0)
 	scaleButtons.append(flagTypeButton)
 
@@ -696,7 +735,7 @@ def acMain(ac_version):
 	
 	ac.drawBorder(flagTypeSwitch,1)
 	ac.setSize(flagTypeSwitch,20,20)
-	ac.setPosition(flagTypeSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,240)
+	ac.setPosition(flagTypeSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,260)
 	ac.setVisible(flagTypeSwitch,0)
 	scaleButtons.append(flagTypeSwitch)
 	ac.addOnClickedListener(flagTypeSwitch,proxSolidClick)
@@ -706,7 +745,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(indicatorWidthButton,"left")
 	ac.drawBorder(indicatorWidthButton,1)
 	ac.setSize(indicatorWidthButton,80,20)
-	ac.setPosition(indicatorWidthButton,windowWidth + 20 ,260)
+	ac.setPosition(indicatorWidthButton,windowWidth + 20 ,280)
 	ac.setVisible(indicatorWidthButton,0)
 	scaleButtons.append(indicatorWidthButton)
 
@@ -714,7 +753,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(indicatorMinus,"left")
 	ac.drawBorder(indicatorMinus,1)
 	ac.setSize(indicatorMinus,20,20)
-	ac.setPosition(indicatorMinus,windowWidth + 20 + 80 + 20 + 20 ,260)
+	ac.setPosition(indicatorMinus,windowWidth + 20 + 80 + 20 + 20 ,280)
 	ac.setVisible(indicatorMinus,0)
 	scaleButtons.append(indicatorMinus)
 	ac.addOnClickedListener(indicatorMinus,flagClickDown)
@@ -723,7 +762,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(indicatorPlus,"left")
 	ac.drawBorder(indicatorPlus,1)
 	ac.setSize(indicatorPlus,20,20)
-	ac.setPosition(indicatorPlus,windowWidth + 20 + 80 + 20 + 20 + 20,260)
+	ac.setPosition(indicatorPlus,windowWidth + 20 + 80 + 20 + 20 + 20,280)
 	ac.setVisible(indicatorPlus,0)
 	scaleButtons.append(indicatorPlus)
 	ac.addOnClickedListener(indicatorPlus,flagClickUp)
@@ -732,7 +771,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(indicatorLengthButton,"left")
 	ac.drawBorder(indicatorLengthButton,1)
 	ac.setSize(indicatorLengthButton,80,20)
-	ac.setPosition(indicatorLengthButton,windowWidth + 20 ,280)
+	ac.setPosition(indicatorLengthButton,windowWidth + 20 ,300)
 	ac.setVisible(indicatorLengthButton,0)
 	scaleButtons.append(indicatorLengthButton)
 
@@ -740,7 +779,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(indicatorLengthMinus,"left")
 	ac.drawBorder(indicatorLengthMinus,1)
 	ac.setSize(indicatorLengthMinus,20,20)
-	ac.setPosition(indicatorLengthMinus,windowWidth + 20 + 80 + 20 + 20 ,280)
+	ac.setPosition(indicatorLengthMinus,windowWidth + 20 + 80 + 20 + 20 ,300)
 	ac.setVisible(indicatorLengthMinus,0)
 	scaleButtons.append(indicatorLengthMinus)
 	ac.addOnClickedListener(indicatorLengthMinus,flagLengthClickDown)
@@ -749,7 +788,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(indicatorLengthPlus,"left")
 	ac.drawBorder(indicatorLengthPlus,1)
 	ac.setSize(indicatorLengthPlus,20,20)
-	ac.setPosition(indicatorLengthPlus,windowWidth + 20 + 80 + 20 + 20 + 20,280)
+	ac.setPosition(indicatorLengthPlus,windowWidth + 20 + 80 + 20 + 20 + 20,300)
 	ac.setVisible(indicatorLengthPlus,0)
 	scaleButtons.append(indicatorLengthPlus)
 	ac.addOnClickedListener(indicatorLengthPlus,flagLengthClickUp)
@@ -759,7 +798,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(blueFlagLabel,"left")
 	ac.drawBorder(blueFlagLabel,1)
 	ac.setSize(blueFlagLabel,80,20)
-	ac.setPosition(blueFlagLabel,windowWidth + 20 ,300)
+	ac.setPosition(blueFlagLabel,windowWidth + 20 ,320)
 	ac.setVisible(blueFlagLabel,0)
 	scaleButtons.append(blueFlagLabel)
 
@@ -767,7 +806,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(blueFlagSwitch,"left")
 	ac.drawBorder(blueFlagSwitch,1)
 	ac.setSize(blueFlagSwitch,20,20)
-	ac.setPosition(blueFlagSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,300)
+	ac.setPosition(blueFlagSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,320)
 	ac.setVisible(blueFlagSwitch,0)
 	scaleButtons.append(blueFlagSwitch)
 	if blueFlags == True:
@@ -785,7 +824,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(backgroundColourLabel,"left")
 	ac.drawBorder(backgroundColourLabel,1)
 	ac.setSize(backgroundColourLabel,80,20)
-	ac.setPosition(backgroundColourLabel,windowWidth + 20 ,320)
+	ac.setPosition(backgroundColourLabel,windowWidth + 20 ,340)
 	ac.setVisible(backgroundColourLabel,0)
 	scaleButtons.append(backgroundColourLabel)
 
@@ -793,7 +832,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(backgroundColourSwitch,"left")
 	ac.drawBorder(backgroundColourSwitch,1)
 	ac.setSize(backgroundColourSwitch,20,20)
-	ac.setPosition(backgroundColourSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,320)
+	ac.setPosition(backgroundColourSwitch,windowWidth + 20 + 80 + 20 + 20 + 20,340)
 	ac.setVisible(backgroundColourSwitch,0)
 	scaleButtons.append(backgroundColourSwitch)
 	if backgroundColourIndex == 0:
@@ -811,7 +850,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(backgroundTypeLabel,"left")
 	ac.drawBorder(backgroundTypeLabel,1)
 	ac.setSize(backgroundTypeLabel,80,20)
-	ac.setPosition(backgroundTypeLabel,windowWidth + 20 ,340)
+	ac.setPosition(backgroundTypeLabel,windowWidth + 20 ,360)
 	ac.setVisible(backgroundTypeLabel,0)
 	scaleButtons.append(backgroundTypeLabel)
 
@@ -819,7 +858,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(backgroundTypeMinus,"left")
 	ac.drawBorder(backgroundTypeMinus,1)
 	ac.setSize(backgroundTypeMinus,20,20)
-	ac.setPosition(backgroundTypeMinus,windowWidth + 20 + 80 + 20 + 20 ,340)
+	ac.setPosition(backgroundTypeMinus,windowWidth + 20 + 80 + 20 + 20 ,360)
 	ac.setVisible(backgroundTypeMinus,0)
 	scaleButtons.append(backgroundTypeMinus)
 	ac.addOnClickedListener(backgroundTypeMinus,backgroundTypeMinusClick)
@@ -828,7 +867,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(backgroundTypePlus,"left")
 	ac.drawBorder(backgroundTypePlus,1)
 	ac.setSize(backgroundTypePlus,20,20)
-	ac.setPosition(backgroundTypePlus,windowWidth + 20 + 80 + 20 + 20 + 20,340)
+	ac.setPosition(backgroundTypePlus,windowWidth + 20 + 80 + 20 + 20 + 20,360)
 	ac.setVisible(backgroundTypePlus,0)
 	scaleButtons.append(backgroundTypePlus)
 	ac.addOnClickedListener(backgroundTypePlus,backgroundTypePlusClick)
@@ -837,7 +876,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(overallOpacityLabel,"left")
 	ac.drawBorder(overallOpacityLabel,1)
 	ac.setSize(overallOpacityLabel,80,20)
-	ac.setPosition(overallOpacityLabel,windowWidth + 20 ,360)
+	ac.setPosition(overallOpacityLabel,windowWidth + 20 ,380)
 	ac.setVisible(overallOpacityLabel,0)
 	scaleButtons.append(overallOpacityLabel)
 
@@ -845,7 +884,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(overallOpacityMinus,"left")
 	ac.drawBorder(overallOpacityMinus,1)
 	ac.setSize(overallOpacityMinus,20,20)
-	ac.setPosition(overallOpacityMinus,windowWidth + 20 + 80 + 20 + 20 ,360)
+	ac.setPosition(overallOpacityMinus,windowWidth + 20 + 80 + 20 + 20 ,380)
 	ac.setVisible(overallOpacityMinus,0)
 	scaleButtons.append(overallOpacityMinus)
 	ac.addOnClickedListener(overallOpacityMinus,opacityDown)
@@ -854,7 +893,7 @@ def acMain(ac_version):
 	ac.setFontAlignment(overallOpacityPlus,"left")
 	ac.drawBorder(overallOpacityPlus,1)
 	ac.setSize(overallOpacityPlus,20,20)
-	ac.setPosition(overallOpacityPlus,windowWidth + 20 + 80 + 20 + 20 + 20,360)
+	ac.setPosition(overallOpacityPlus,windowWidth + 20 + 80 + 20 + 20 + 20,380)
 	ac.setVisible(overallOpacityPlus,0)
 	scaleButtons.append(overallOpacityPlus)
 	ac.addOnClickedListener(overallOpacityPlus,opacityUp)
@@ -936,6 +975,8 @@ def acMain(ac_version):
 	elif (backgroundColourIndex == 7):	
 		ac.setBackgroundColor(backgroundColourSwitch,backgroundColours[6][0],backgroundColours[6][1],backgroundColours[6][2])
 
+	doClick()
+
 	buildCarList()
 	return "carRadar"
 
@@ -989,13 +1030,11 @@ def scaleClickDown(name,state):
 def showPlayerClick(name, state):
 	global drawPlayerCar
 	drawPlayerCar = not drawPlayerCar
-	#ac.console(str(drawPlayerCar))
-	
+	#ac.console(str(drawPlayerCar))	
 
 def scaleClickUpBig(name,state):
 	global scale,scaleValue	
-	scale+= 10
-	
+	scale+= 10	
 
 def scaleClickDownBig(name,state):
 	global scale,scaleValue	
@@ -1080,8 +1119,7 @@ def rangeClickUp(name,state):
 	global carAuraTarget,raiseCarAura
 	
 	raiseCarAura = True
-	carAuraTarget += 5
-	
+	carAuraTarget += 5	
 
 def rangeClickDown(name,state):
 	global carAuraTarget,lowerCarAura
@@ -1090,6 +1128,20 @@ def rangeClickDown(name,state):
 	carAuraTarget -= 5
 	if(carAuraTarget < 0):
 		carAuraTarget = 0
+
+def rearCutOffDistanceClickUp(name,state):
+	global rearCutOffDistance, raiseRearCutOffDistance
+	
+	raiseRearCutOffDistance = True
+	rearCutOffDistance += 5	
+
+def rearCutOffDistanceClickDown(name,state):
+	global rearCutOffDistance, lowerRearCutOffDistance
+
+	lowerRearCutOffDistance = True
+	rearCutOffDistance -= 5
+	if(rearCutOffDistance < 0):
+		rearCutOffDistance = 0
 
 def angleClickUp(name, state):
 	global angleTarget,raiseAngle
@@ -1628,9 +1680,8 @@ def drawBackground(alpha):
 
 				ac.glEnd()
 
-
 def drawConfig():
-	global configButton,retractConfigButton,extendConfigButton,configSizeCurrent,configSizeSmall,configSizeLarge,scaleButtons,windowWidth,drop,cogRotation,border,configWindowOpen,background,carAura,angleOfInfluence,scale,carAuraTarget,lowerCarAura,raiseCarAura,raiseAngle,lowerAngle,angleTarget,overallOpacity
+	global configButton,retractConfigButton,extendConfigButton,configSizeCurrent,configSizeSmall,configSizeLarge,scaleButtons,windowWidth,drop,cogRotation,border,configWindowOpen,background,carAura,angleOfInfluence,scale,carAuraTarget,lowerCarAura,raiseCarAura,raiseAngle,lowerAngle,angleTarget,overallOpacity,rearCutOffDistance
 
 	
 
@@ -1647,7 +1698,10 @@ def drawConfig():
 		if not border:
 			#if border isnt active and we have closed the window, hide clickable button
 			ac.setVisible(configButton,0)
+			#get outta here!
+			return
 
+	##ac.console(str("here"))
 	#always make button clickable if border is being anmimated - radar blip
 	#if border:
 	#	ac.setVisible(configButton,1)
@@ -2074,13 +2128,14 @@ def drawConfig():
 					if i == detail*2: 
 						j += 1
 
-				#ac.console(str(degrees))
+				# ac.console(str(rangePoints[i][1]))
 				degrees = rangePoints[i][2]
 				
 				
 
 				alpha = rangePoints[i][3]
 				ac.glColor4f(0,133/255,133/255,alpha)
+				
 				ac.glBegin(2)
 				#if(rangePoints[i][0] > 101):
 				#	ac.glColor4f(0,133/255,133/255,0.0) #remove above? - overlapping config options if i leave on
@@ -2183,7 +2238,7 @@ def buildCarList():
 		offset = ()
 		tempCarList.append(CarAndInfo(carId,carType,distance,vertices,rectangleVertices,faces,normals,boundary,boundarySimple,radsToPlayer,alpha,blueCounter,makeBlue,offset))
 
-def acUpdate(deltaT):
+def goGoCarRadar(deltaT):
 	global carList,tempCarList,appWindow,elapsed,timeStart,appWindow,filesToRemove,border,borderRadius,converterAvailable,carTypesToConvert,converterWait,converterWaitCount,drawPlayerCar,drawOutlineOfCars,drawMeshOfCars,configWindowOpen,indicatorFlagMode,drawRadarBackground
 	
 	ac.setBackgroundOpacity(appWindow, 0)
@@ -2209,6 +2264,8 @@ def acUpdate(deltaT):
 	if border == True:
 		borderRadius = drawBorder(borderRadius)
 
+
+	#########################################################REMOVE?
 	##can change to using time.clock if we want
 	elapsed += 1
 	#ac.log(str(elapsed))
@@ -2367,8 +2424,8 @@ def acUpdate(deltaT):
 					verticesFile = open(dirAndFilename, "w")
 					for p in points:
 					    #force a new line each time - having to add \n here, 				    
-					    verticesFile.write(str(p)+"\n")
-					    vertices.append(p)
+						verticesFile.write(str(p)+"\n")
+						vertices.append(p)
 					verticesFile.close()
 
 					#write faces file - the way i write these files could be a little more standardised, but it is working, and parsing files wasn't something I just learned with any great gusto
@@ -2450,7 +2507,7 @@ def acUpdate(deltaT):
 	if converterAvailable and carTypesToConvertLength > 0:
 		#point to folder if no info found in My Docs
 		location = 'content/cars/'+ carTypesToConvert[0] + '/collider.kn5'
-		#this will drop .obj in car folder - acUpdate will pick this up and send info to docs			
+		#this will drop .obj in car folder - goGoCarRadar will pick this up and send info to docs			
 		convertKn5(location)		
 		#ac.log("sending to converter " + str(carTypesToConvert[0]) + " - Cartype")
 
@@ -2663,6 +2720,10 @@ def getFacesFromFile(facesFile):
 
 def renderCarFactored(car):
 	global highPerformanceOnClicked
+
+	##work out alpha
+	car.alpha = alphaAtDistance(car,car.distance)	
+	
 	#work out rotations
 	#get angle 	
 	car.radsToPlayer = angleToPlayer(car)
@@ -2674,8 +2735,6 @@ def renderCarFactored(car):
 	
 	#rotate around own axis
 	localRot = rotationAroundThisCar(car)
-
-	car.alpha = alphaAtDistance(car,car.distance)	
 
 	#now we know our alpha, draw the background - alpha should be worked out before render call, yes
 	#only draw on player car
@@ -2727,6 +2786,7 @@ def renderCarFactored(car):
 		faces.append((0,1,2))
 		faces.append((2,3,0))
 		normals = []
+
 		drawRotatedVertices(car.rectangleVertices,rotatedPositions,faces,normals,car.distance,car,degrees)
 
 
@@ -3213,22 +3273,46 @@ def proximityFlag(car):
 		ac.glEnd()
 
 def alphaAtDistance(car,distance):
-	global angleOfInfluence,fadeDistance,fadeTime,border,configWindowOpen,carAura
+	global angleOfInfluence,fadeDistance,fadeTime,border,configWindowOpen,carAura, rearCutOffDistance
 	if car.carId != ac.getFocusedCar():
 		#This function gives a smooth curve from 0 to 1
 		#	tanh	Hyperbolic tangent (tanh) of a value or expression	
-		#distance at which cars start to fade (kinda) - after they have got passed car Aura's distance - car Aura is like a deadzone
-		degrees = math.fabs(math.degrees(car.radsToPlayer))
-		
-		diff = degrees - angleOfInfluence*0.5
+		# distance at which cars start to fade (kinda) - after they have got passed car Aura's distance - car Aura is like a deadzone		
 		fadeDistance = 5
 
 		#we will use this value if fade mode is off( nothing outside carAura or "distance" is sent here)
 		alphaToReturn = 1
-		#fade mode
+
+		#fade mode		
+		#player world position
+		pwpX,pwpY,pwpZ = ac.getCarState(ac.getFocusedCar(),acsys.CS.WorldPosition)
+		#this car world position
+		wpX,wpY,wpZ = ac.getCarState(car.carId,acsys.CS.WorldPosition)
+
+		relativeX = (wpX - pwpX)
+		relativeZ = (wpZ - pwpZ)
 		
+		globalRot = rotationAroundPlayerCar()
+		ca = math.cos(globalRot)
+		sa = math.sin(globalRot)		
+		rotatedPlayerVectorY2 = (sa * relativeX + ca * relativeZ)
+		
+		# rear end distance cutoff
+		if(rotatedPlayerVectorY2 < -rearCutOffDistance):			
+			inValue =  distance/(rearCutOffDistance * 2) # After all these years I still don't understand why I need * 2						
+			curveSpeed = 20 # this value changes how aggressively it fades out
+			endFraction = 1.15 # this value changes when it starts to fade out (very sensitive)
+			x = inValue
+			z = curveSpeed
+			b = endFraction						
+			result = (math.tanh((z*x) - (z/b)) + 1)/2			
+			#graph returns from 0 to 1, but we need the inverse
+			return 1 - result
+
+		degrees = math.fabs(math.degrees(car.radsToPlayer))
 		if(degrees < angleOfInfluence/2 or degrees > 360 - (angleOfInfluence/2)):
 			if fadeTime == 10:
+				diff = degrees - angleOfInfluence*0.5
 				#to be honest, i just trial and errored this until it worked, no master plan on it
 				#the idea behind it is if  the angle to the target car and the player's angle choice is small, then fade out
 				#trickin the player/focused car in to thinkning the car is further away so we can fade it using the same graph below
@@ -3304,6 +3388,7 @@ def drawRotatedVertices(originalVertices,vertices,faces,normals,distance,car,ang
 
 
 	carBoundaryLength = len(car.boundary)
+
 	renderedIndices = []
 
 	#set colour depending on who we are drawing
@@ -3410,10 +3495,9 @@ def drawRotatedVertices(originalVertices,vertices,faces,normals,distance,car,ang
 				ac.glColor4f(0,0,1,thisAlpha)
 	
 
-	
+	trianglesToDraw = []
 	#use faces list to represent the vertices/positions in an arranged format
 	for i in range(0,len(faces)):
-	#for face in faces:		
 		
 		face = faces[i]
 
@@ -3473,39 +3557,82 @@ def drawRotatedVertices(originalVertices,vertices,faces,normals,distance,car,ang
 			renderedIndices.append((a,b,c))
 
 		if(drawMeshOfCars):
-			ac.glBegin(2)#2 for tris
+
+			#ac.glBegin(2)#2 for tris
 			#add tri
 			#colour side?
 			#if originalVertices[a][0] > 0:
 			#	ac.glColor3f(0,0,0)
 			#else:
 			#	ac.glColor3f(1,0,0)		
-			ac.glVertex2f(vA0,vA1)		
+			trianglesToDraw.append((vA0,vA1))
+			#ac.glVertex2f(vA0,vA1)		
 			#flip triangle, we are effectively drawing the underside of the car upside down - so that it faces skywards ;)
 
 			#if originalVertices[c][0] > 0:
 			#	ac.glColor3f(0,0,0)
 			#else:
 			#	ac.glColor3f(1,0,0)
-			ac.glVertex2f(vC0,vC1)
+			trianglesToDraw.append((vC0,vC1))
+			#ac.glVertex2f(vC0,vC1)
 
 			#if originalVertices[b][0] > 0:
 			#	ac.glColor3f(0,0,0)
 			#else:
 			#	ac.glColor3f(1,0,0)
-			ac.glVertex2f(vB0,vB1)
-			a = ac.glEnd()
+			trianglesToDraw.append((vB0,vB1))
+			#ac.glVertex2f(vB0,vB1)
+			#ac.glEnd()
 
-		#overide atm
-	#	testRun = True
+	
+	
+	#ac.console(str(len(trianglesToDraw)))
+	
+	
+	counterRender = 0
+	for i in range(0,len(trianglesToDraw)-2,3):
 
+		wireframe = False
 
+		if wireframe:
+			
+			ac.glColor4f(0,0,0,1)
+			ac.glBegin(0)
+			ac.glVertex2f(trianglesToDraw[i][0],trianglesToDraw[i][1])
+			ac.glVertex2f(trianglesToDraw[i+1][0],trianglesToDraw[i+1][1])
+
+			ac.glVertex2f(trianglesToDraw[i+1][0],trianglesToDraw[i+1][1])		
+			ac.glVertex2f(trianglesToDraw[i+2][0],trianglesToDraw[i+2][1])
+
+			ac.glVertex2f(trianglesToDraw[i+2][0],trianglesToDraw[i+2][1])		
+			ac.glVertex2f(trianglesToDraw[i][0],trianglesToDraw[i][1])
+			ac.glColor4f(carColour[0],carColour[1],carColour[2],thisAlpha)
+
+			ac.glEnd()
+
+		ac.glBegin(2)
+		ac.glVertex2f(trianglesToDraw[i][0],trianglesToDraw[i][1])
+		ac.glVertex2f(trianglesToDraw[i+1][0],trianglesToDraw[i+1][1])		
+		ac.glVertex2f(trianglesToDraw[i+2][0],trianglesToDraw[i+2][1])		
+
+		#ac.glVertex2f(trianglesToDraw[i+4][0],trianglesToDraw[i+4][1])
+		#ac.glVertex2f(trianglesToDraw[i+5][0],trianglesToDraw[i+5][1])		
+		#ac.glVertex2f(trianglesToDraw[i+6][0],trianglesToDraw[i+6][1])		
+
+		ac.glEnd()
+
+		counterRender += 1
+		if(counterRender == 3):
+		#	ac.glEnd()
+		#	ac.glBegin(2)
+			counterRender = 0
+	
 
 	#if we haven't found edges yet, do so and save in car's info class
 	if(highPerformanceOnClicked == False):
 		if carBoundaryLength == 0:# and highPerformanceOnClicked == False:
 			#works out boundary for this car and saves info to its own class - to make more efficient could save edges to carTypes list and read from there instead
-			#ac.log("Working out boundary for " + str(car.carId))
+			#ac.console("Working out boundary for " + str(car.carId))
 			edges = GetEdges2(renderedIndices)	
 			car.boundary = FindBoundary(edges)
 
@@ -3741,62 +3868,7 @@ def drawRotatedRectangle(positions):
 	ac.glVertex2f((positions[2][0]),(positions[2][1]))#rear right
 	
 	a = ac.glEnd()
-	#ac.log(str(a))
 
-def tyres(car): #I don't have tire widths so can't use this accurately
-	global scale,windowWidth
-	#list of wheel position
-	positions = []
-		#this car world position
-	wpX,wpY,wpZ = ac.getCarState(car.carId,acsys.CS.WorldPosition)
-	#tyre positions
-	for i in range(4): #[0,1,2,3] # for(int i = 0; i < 4; i++) in c#
-		#find this car's fwd vector
-		wheel = acsys.WHEELS.FL
-		    
-		if i == 1: 
-		    wheel = acsys.WHEELS.FR
-		if i == 2:  
-		    wheel = acsys.WHEELS.RR
-		if i == 3:  
-		    wheel = acsys.WHEELS.RL
-
-		fx,fy,fz = ac.getCarState(car.carId,acsys.CS.TyreContactPoint,wheel)    
-		#save width
-		if i == 2:
-			rearX = fx    
-		#remove world position from this to make it a directional vector from the center of the car to the wheels
-		#also subtract relative position      
-		fx -= wpX - relativeX#- pbwX
-		fz -= wpZ - relativeZ#- pbwZ
-
-		#now rotate this vector(player car pos to player in between wheels) by the angle we spun before
-
-		rotatedPlayerVectorX = (ca * fx - sa * fz)
-		rotatedPlayerVectorY = (sa * fx + ca * fz)
-		#scale for gui
-		rotatedPlayerVectorX *= scale
-		rotatedPlayerVectorY *= scale
-
-		posX = windowWidth*0.5 - rotatedPlayerVectorX # sort center remove width/2?
-		posY = windowWidth*0.5 - rotatedPlayerVectorY
-		positions.append( (posX,posY) )
-
-
-	#draw tyres
-	for i in range(4):
-	#	#    #ac.log(str(len(positions)))
-		posX = positions[i][0]#.x
-		posY = positions[i][1]#.y
-		tyreWidth = 0.25 * 1.33 * scale #1.33 because of where hub is placed in relation to full tyre?
-		tyreLength = 0.3025 * 2 * scale
-		if (i == 2) or (i == 3):
-			tyreWidth = 0.34 * 1.33 * scale
-			tyreLength = 0.32 * 2 * scale
-
-		ac.glColor3f(0,0,0)
-		ac.glQuad(posX - tyreWidth/3, posY - tyreLength/2, tyreWidth, tyreLength)
-		ac.glColor3f(1,1,1)
 
 def convertKn5(location):
 
@@ -3813,7 +3885,7 @@ def convertKn5(location):
     #p.kill()needed?
 
 def acShutdown():
-	global filesToRemove,playerCarMeshColourIndex,playerCarOutlineColourIndex,otherCarMeshColourIndex,otherCarOutlineColourIndex,carAuraTarget,angleTarget,highPerformanceOnClicked,indicatorMode,proxRange,blueFlags,fadeTime,overallOpacity,indicatorFlagMode,proxSolid,flagWidth,backgroundColourIndex,backgroundShape,flagLength
+	global filesToRemove,playerCarMeshColourIndex,playerCarOutlineColourIndex,otherCarMeshColourIndex,otherCarOutlineColourIndex,carAuraTarget,angleTarget,highPerformanceOnClicked,indicatorMode,proxRange,blueFlags,fadeTime,overallOpacity,indicatorFlagMode,proxSolid,flagWidth,backgroundColourIndex,backgroundShape,flagLength,rearCutOffDistance
 
 	for file in filesToRemove:
 		os.remove(file)
@@ -3878,6 +3950,8 @@ def acShutdown():
 	configFile.write("backgroundShape " + str(backgroundShape)+ '\n')
 
 	configFile.write("flagLength " + str(flagLength)+ '\n')
+
+	configFile.write("rearCutOffDistance " + str(rearCutOffDistance)+ '\n')
 
 	configFile.close()
 	
